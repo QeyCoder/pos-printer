@@ -209,7 +209,7 @@ async function printReceipt(data) {
 }
 
 /**
- * Print plain text lines.
+ * Print plain text lines with better cut control.
  * @param {string}   text      — newline-separated text content
  * @param {object}   [opts]
  * @param {boolean}  [opts.cut=true]   — cut after printing
@@ -234,7 +234,8 @@ async function printText(text, opts = {}) {
 
     if (opts.bold) printer.bold(false);
 
-    if (opts.cut !== false) {
+    // Only cut if explicitly true or defaulted
+    if (opts.cut === true || opts.cut === undefined) {
       printer.newLine();
       printer.newLine();
       printer.cut();
@@ -243,6 +244,44 @@ async function printText(text, opts = {}) {
     await printer.execute();
   } catch (err) {
     throw new Error(`Printer error: ${err.message}`);
+  }
+}
+
+/**
+ * Print a QR code.
+ * @param {string}   data      — the content of the QR (e.g. UPI URI)
+ * @param {object}   [opts]
+ * @param {number}   [opts.size=150]    — visual scale / model
+ * @param {string}   [opts.label]      — text label below QR
+ * @param {boolean}  [opts.cut=true]    — cut after printing
+ */
+async function printQR(data, opts = {}) {
+  const printer = createPrinter();
+
+  try {
+    printer.alignCenter();
+    
+    // Model 2 is standard, cellSize 8 is good for 80mm
+    // Library signature: printer.printQR("data", {model, size})
+    printer.printQR(data, {
+      model: 2,
+      size: 8,
+    });
+
+    if (opts.label) {
+      printer.newLine();
+      printer.println(opts.label);
+    }
+
+    if (opts.cut === true || opts.cut === undefined) {
+      printer.newLine();
+      printer.newLine();
+      printer.cut();
+    }
+
+    await printer.execute();
+  } catch (err) {
+    throw new Error(`Printer error (QR): ${err.message}`);
   }
 }
 
@@ -265,6 +304,50 @@ async function printRaw(rawData) {
   }
 }
 
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+/**
+ * Print an image.
+ * @param {string}   source    — base64 string or local path
+ * @param {object}   [opts]
+ * @param {boolean}  [opts.cut=false]
+ */
+async function printImage(source, opts = {}) {
+  const printer = createPrinter();
+  let tempPath = null;
+
+  try {
+    printer.alignCenter();
+    
+    // If it's a base64 string, save it to a temporary file first
+    if (source.startsWith('data:image') || source.length > 500) {
+      const base64Data = source.replace(/^data:image\/\w+;base64,/, "");
+      tempPath = path.join(os.tmpdir(), `print_logo_${Date.now()}.png`);
+      fs.writeFileSync(tempPath, base64Data, 'base64');
+      await printer.printImage(tempPath);
+    } else {
+      // Treat as direct file path
+      await printer.printImage(source);
+    }
+
+    if (opts.cut) {
+      printer.newLine();
+      printer.cut();
+    }
+
+    await printer.execute();
+  } catch (err) {
+    throw new Error(`Printer error (Image): ${err.message}`);
+  } finally {
+    // Cleanup temporary file
+    if (tempPath && fs.existsSync(tempPath)) {
+      try { fs.unlinkSync(tempPath); } catch (e) {}
+    }
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatAmount(num) {
@@ -282,6 +365,8 @@ module.exports = {
   checkPrinterStatus,
   printReceipt,
   printText,
+  printQR,
+  printImage,
   printRaw,
   PRINTER_WIDTH,
 };

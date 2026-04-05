@@ -16,6 +16,8 @@ const {
   checkPrinterStatus,
   printReceipt,
   printText,
+  printQR,
+  printImage,
   printRaw,
 } = require('../printer');
 
@@ -113,6 +115,44 @@ router.post('/print/text', requireApiKey, async (req, res) => {
     res.json({ success: true, message: 'Text printed' });
   } catch (err) {
     console.error('[print/text]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── POST /print/qr ────────────────────────────────────────────────────────────
+/**
+ * Body (JSON):
+ * {
+ *   "data": "...",
+ *   "cut": true             // optional, default true
+ * }
+ */
+router.post('/print/qr', requireApiKey, async (req, res) => {
+  const { data, cut } = req.body;
+  if (!data) return res.status(400).json({ error: 'data is required' });
+  try {
+    await printQR(data, { cut });
+    res.json({ success: true, message: 'QR printed' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── POST /print/image ─────────────────────────────────────────────────────────
+/**
+ * Body (JSON):
+ * {
+ *   "source": "base64 string or url",
+ *   "cut": false            // optional
+ * }
+ */
+router.post('/print/image', requireApiKey, async (req, res) => {
+  const { source, cut } = req.body;
+  if (!source) return res.status(400).json({ error: 'source (base64 or path) is required' });
+  try {
+    await printImage(source, { cut });
+    res.json({ success: true, message: 'Image printed' });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
