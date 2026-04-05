@@ -8,8 +8,8 @@ function createServer() {
   // ── Security headers ────────────────────────────────────────────────────────
   app.use(helmet());
 
-  // ── Body parsing ────────────────────────────────────────────────────────────
-  app.use(express.json({ limit: '1mb' }));
+  // ── Body parsing (Increased for Brand Logos) ─────────────────────────
+  app.use(express.json({ limit: '10mb' }));
 
   // ── Request logging (lightweight) ───────────────────────────────────────────
   app.use((req, res, next) => {
