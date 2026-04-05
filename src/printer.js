@@ -261,19 +261,29 @@ async function printQR(data, opts = {}) {
   try {
     printer.alignCenter();
     
-    // Model 2 is standard, cellSize 8 is good for 80mm
+    // Model 2 is standard, size 12 is massive for 80mm
     // Library signature: printer.printQR("data", {model, size})
     printer.printQR(data, {
       model: 2,
-      size: 8,
+      size: opts.size || 12, 
     });
 
     if (opts.label) {
       printer.newLine();
+      printer.bold(true);
       printer.println(opts.label);
+      printer.bold(false);
+    }
+
+    if (opts.lineAfter) {
+      printer.println("-".repeat(42));
     }
 
     if (opts.cut === true || opts.cut === undefined) {
+      // Feed 5 lines to clear the print head and reach the mechanical blade
+      printer.newLine();
+      printer.newLine();
+      printer.newLine();
       printer.newLine();
       printer.newLine();
       printer.cut();
