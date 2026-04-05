@@ -315,20 +315,23 @@ const os = require('os');
  * @param {boolean}  [opts.cut=false]
  */
 async function printImage(source, opts = {}) {
-  const printer = createPrinter();
   let tempPath = null;
-
+  // We use a fresh printer instance here but we MUST NOT let it crash the main process
   try {
+    const printer = createPrinter();
     printer.alignCenter();
     
-    // If it's a base64 string, save it to a temporary file first
+    // Safety check: 1.3MB+ base64 is way too big for a thermal 80mm logo
+    if (source.length > 500000) {
+       console.warn("[PRINTER] Logo data is very large. Printing may be slow or fail.");
+    }
+
     if (source.startsWith('data:image') || source.length > 500) {
       const base64Data = source.replace(/^data:image\/\w+;base64,/, "");
       tempPath = path.join(os.tmpdir(), `print_logo_${Date.now()}.png`);
       fs.writeFileSync(tempPath, base64Data, 'base64');
       await printer.printImage(tempPath);
     } else {
-      // Treat as direct file path
       await printer.printImage(source);
     }
 
@@ -338,10 +341,11 @@ async function printImage(source, opts = {}) {
     }
 
     await printer.execute();
+    console.log("[PRINTER] Image printed successfully.");
   } catch (err) {
-    throw new Error(`Printer error (Image): ${err.message}`);
+    // CRITICAL: We catch but DO NOT rethrow, so the server stays alive
+    console.error("[PRINTER ERROR - IMAGE]:", err.message);
   } finally {
-    // Cleanup temporary file
     if (tempPath && fs.existsSync(tempPath)) {
       try { fs.unlinkSync(tempPath); } catch (e) {}
     }
