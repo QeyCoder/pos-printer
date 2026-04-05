@@ -1,0 +1,36 @@
+[Unit]
+Description=POS Thermal Print Server
+Documentation=https://github.com/YOUR_USERNAME/pos-print-server
+# Start after network and Tailscale are up
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dietpi
+Group=lp
+
+# Adjust path if you cloned to a different location
+WorkingDirectory=/home/dietpi/pos-print-server
+ExecStart=/usr/bin/node src/index.js
+
+# Load environment from .env file
+EnvironmentFile=/home/dietpi/pos-print-server/.env
+
+# Auto-restart on crash, with backoff
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Logging — journald captures stdout/stderr
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pos-print-server
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
